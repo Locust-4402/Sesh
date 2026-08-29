@@ -237,6 +237,13 @@ body {
   background: #23262f;
 }
 
+.msg.admin {
+  align-self: flex-start;
+  background: #1f6b23;
+  color: var(--accent-bright);
+  border: 1px solid var(--accent);
+}
+
 .msg.system {
   align-self: center;
   color: var(--text-dim);
@@ -553,7 +560,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.candidate) onIceCandidate(event.candidate.toJSON());
     };
 
-    // Hardened connection state check to prevent premature false drops
     let disconnectTimer = null;
     connection.onconnectionstatechange = () => {
       const state = connection.connectionState;
@@ -564,7 +570,6 @@ document.addEventListener("DOMContentLoaded", () => {
           disconnectTimer = null;
         }
       } else if (state === "disconnected") {
-        // Give it a 5-second grace period to recover automatically before dropping
         if (!disconnectTimer) {
           disconnectTimer = setTimeout(() => {
             if (connection.connectionState === "disconnected" || connection.connectionState === "failed") {
@@ -680,7 +685,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = snap.data();
-      // Check if admin ashed the room
       if (data?.status === "ashed") {
         handlePartnerDisconnect();
         return;
@@ -729,7 +733,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = snap.data();
-      // Check if admin ashed the room
       if (data?.status === "ashed") {
         handlePartnerDisconnect();
         return;
@@ -769,7 +772,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (change.type === "added") {
           const msg = change.doc.data();
           if (msg.senderId !== myId) {
-            addMessage(msg.text, "stranger");
+            // Check if message came from Admin / Moderator
+            if (msg.senderId === "Admin" || msg.senderId === "moderator") {
+              addMessage(`Admin: ${msg.text}`, "admin");
+            } else {
+              addMessage(msg.text, "stranger");
+            }
           }
         }
       });
