@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🍃 Sesh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #081008;
+  --panel: #0f1c10;
+  --border: #234a24;
+  --accent: #4ad84a;
+  --accent-dim: #1f6b23;
+  --accent-bright: #7dff5a;
+  --text: #e7f5e6;
+  --text-dim: #7fa77e;
+  --danger: #ff6b4a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  position: relative;
+  background: radial-gradient(ellipse at top, #10240f 0%, var(--bg) 70%);
+  color: var(--text);
+  font-family: "Rubik", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scattered leaf emoji drifting in the background for a bit of 420 flavor */
+.leaf-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.leaf-field::before,
+.leaf-field::after {
+  content: "🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿";
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  font-size: 22px;
+  line-height: 90px;
+  letter-spacing: 40px;
+  opacity: 0.06;
+  white-space: pre-wrap;
+  color: var(--accent-bright);
+}
+
+.leaf-field::before { top: 6%; transform: rotate(-6deg); }
+.leaf-field::after { top: 55%; transform: rotate(4deg); }
+
+.topbar, .layout, .controls { position: relative; z-index: 1; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.topbar h1 {
+  font-family: "Bungee", "Rubik", sans-serif;
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: 0.5px;
+  color: var(--accent-bright);
+  text-shadow: 0 0 18px rgba(125, 255, 90, 0.35);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.tagline {
+  font-family: "Rubik", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+  text-shadow: none;
+  letter-spacing: 0.2px;
+}
+
+.status {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.status.connected { color: var(--accent-bright); border-color: var(--accent-dim); }
+.status.waiting { color: #f2c94c; border-color: #6b5a1d; }
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  min-height: 0;
+}
+
+.video-area {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.video-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.video-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.video-wrap.small {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 180px;
+  height: 130px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.video-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.55);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.chat-area {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.msg {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.msg.me {
+  align-self: flex-end;
+  background: var(--accent-dim);
+  color: white;
+}
+
+.msg.stranger {
+  align-self: flex-start;
+  background: #23262f;
+}
+
+.msg.system {
+  align-self: center;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 12.5px;
+  background: none;
+}
+
+.typing-indicator {
+  height: 18px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.chat-form {
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+
+.chat-form input {
+  flex: 1;
+  border: none;
+  background: #10121a;
+  color: var(--text);
+  padding: 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-form button {
+  border: none;
+  background: var(--accent);
+  color: white;
+  padding: 0 18px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.chat-form button:disabled,
+.chat-form input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.controls button {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1d212b;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.controls button:hover:not(:disabled) {
+  background: #262b37;
+}
+
+.controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#startBtn { background: var(--accent); border-color: var(--accent); color: white; }
+#stopBtn:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="leaf-field" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <h1>🍃 Sesh<span class="tagline">pull up for a sesh with a stranger</span></h1>
+    <span id="status" class="status">Not connected</span>
+  </header>
+
+  <main class="layout">
+    <section class="video-area">
+      <div class="video-wrap">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <span class="video-label">🍃 Sesh Partner</span>
+      </div>
+      <div class="video-wrap small">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <span class="video-label">You</span>
+      </div>
+    </section>
+
+    <section class="chat-area">
+      <div id="messages" class="messages"></div>
+      <div id="typingIndicator" class="typing-indicator"></div>
+      <form id="chatForm" class="chat-form">
+        <input id="chatInput" type="text" placeholder="Say what's good..." autocomplete="off" disabled />
+        <button type="submit" disabled>Send 🌿</button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="controls">
+    <button id="startBtn">🔥 Spark Up</button>
+    <button id="nextBtn" disabled>🔄 Pass It</button>
+    <button id="stopBtn" disabled>🚫 Ash Out</button>
+  </footer>
+
+  <!-- app.js is a module so it can `import` the Firebase SDK from the CDN -->
+  <script type="module">
+// app.js
+// Serverless "Omegle-style" random chat: matchmaking + WebRTC signaling
+// happen entirely through Firestore (no backend process to run), so this
+// whole site can be hosted on GitHub Pages. Video/audio still flow
+// peer-to-peer between the two browsers once connected.
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  getDocs,
+  addDoc,
+  onSnapshot,
+  runTransaction,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCGJfCcst93wFcYYEJWB5eIoUYyA5fEbAQ",
+  authDomain: "sesh-3a9b9.firebaseapp.com",
+  projectId: "sesh-3a9b9",
+  storageBucket: "sesh-3a9b9.firebasestorage.app",
+  messagingSenderId: "125296339015",
+  appId: "1:125296339015:web:443f998390160649c2a962"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const ICE_SERVERS = {
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+};
+
+// --- DOM ---------------------------------------------------------------
+
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+const statusEl = document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stopBtn = document.getElementById("stopBtn");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const messagesEl = document.getElementById("messages");
+const typingIndicator = document.getElementById("typingIndicator");
+
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  statusEl.className = "status" + (cls ? " " + cls : "");
+}
+
+function addMessage(text, kind) {
+  const div = document.createElement("div");
+  div.className = "msg " + kind;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function setChatEnabled(enabled) {
+  chatInput.disabled = !enabled;
+  chatForm.querySelector("button").disabled = !enabled;
+}
+
+// --- State ---------------------------------------------------------------
+
+let myId = null;
+let localStream = null;
+let pc = null;
+let roomId = null;
+let unsubscribers = []; // active onSnapshot listeners for the current room/wait
+
+function clearListeners() {
+  unsubscribers.forEach((unsub) => unsub());
+  unsubscribers = [];
+}
+
+// --- Media / PeerConnection ------------------------------------------------
+
+async function getLocalMedia() {
+  if (localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true,
+  });
+  localVideo.srcObject = localStream;
+  return localStream;
+}
+
+function createPeerConnection(onIceCandidate) {
+  const connection = new RTCPeerConnection(ICE_SERVERS);
+  localStream.getTracks().forEach((track) => connection.addTrack(track, localStream));
+
+  connection.ontrack = (event) => {
+    remoteVideo.srcObject = event.streams[0];
+  };
+
+  connection.onicecandidate = (event) => {
+    if (event.candidate) onIceCandidate(event.candidate.toJSON());
+  };
+
+  return connection;
+}
+
+// --- Matchmaking -----------------------------------------------------------
+
+async function findPartner() {
+  setStatus("Waiting for a sesh partner...", "waiting");
+  addMessage("Rolling up... looking for a sesh partner", "system");
+
+  const waitingRef = collection(db, "waitingPool");
+  const q = query(waitingRef, orderBy("createdAt"), limit(10));
+  const snapshot = await getDocs(q);
+
+  for (const candidate of snapshot.docs) {
+    if (candidate.id === myId) continue;
+    const claimed = await tryClaim(candidate.id);
+    if (claimed) {
+      roomId = claimed.roomId;
+      await startAsCaller();
+      return;
+    }
+  }
+
+  // Nobody available right now - put ourselves in the queue and wait to be
+  // picked up by the next person who calls findPartner().
+  await setDoc(doc(db, "waitingPool", myId), { createdAt: serverTimestamp() });
+  listenForAssignment();
+}
+
+// Attempts to atomically "claim" a waiting stranger. Returns the new room's
+// id on success, or null if someone else claimed them first.
+async function tryClaim(partnerId) {
+  try {
+    return await runTransaction(db, async (tx) => {
+      const partnerRef = doc(db, "waitingPool", partnerId);
+      const partnerSnap = await tx.get(partnerRef);
+      if (!partnerSnap.exists()) return null; // already taken
+
+      tx.delete(partnerRef);
+
+      const roomRef = doc(collection(db, "rooms"));
+      tx.set(roomRef, {
+        callerId: myId,
+        calleeId: partnerId,
+        createdAt: serverTimestamp(),
+      });
+
+      const assignRef = doc(db, "assignments", partnerId);
+      tx.set(assignRef, { roomId: roomRef.id });
+
+      return { roomId: roomRef.id };
+    });
+  } catch (err) {
+    console.error("claim failed", err);
+    return null;
+  }
+}
+
+function listenForAssignment() {
+  const assignRef = doc(db, "assignments", myId);
+  const unsub = onSnapshot(assignRef, async (snap) => {
+    if (!snap.exists()) return;
+    const { roomId: assignedRoomId } = snap.data();
+    unsub();
+    await deleteDoc(assignRef);
+    await deleteDoc(doc(db, "waitingPool", myId)).catch(() => {});
+    roomId = assignedRoomId;
+    await startAsCallee();
+  });
+  unsubscribers.push(unsub);
+}
+
+// --- WebRTC signaling over Firestore ----------------------------------------
+
+async function startAsCaller() {
+  setStatus("Connected", "connected");
+  addMessage("You're connected. Pass the vibes 🍃", "system");
+  setChatEnabled(true);
+  nextBtn.disabled = false;
+
+  const roomRef = doc(db, "rooms", roomId);
+  const callerCandidatesRef = collection(roomRef, "callerCandidates");
+  const calleeCandidatesRef = collection(roomRef, "calleeCandidates");
+
+  pc = createPeerConnection((candidate) => addDoc(callerCandidatesRef, candidate));
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await setDoc(roomRef, { offer: { sdp: offer.sdp, type: offer.type } }, { merge: true });
+
+  let answerApplied = false;
+  const unsubRoom = onSnapshot(roomRef, async (snap) => {
+    const data = snap.data();
+    if (data?.answer && !answerApplied && pc) {
+      answerApplied = true;
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    }
+  });
+
+  const unsubCandidates = onSnapshot(calleeCandidatesRef, (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "added" && pc) {
+        pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(console.error);
+      }
+    });
+  });
+
+  unsubscribers.push(unsubRoom, unsubCandidates);
+  listenForMessages(roomRef);
+}
+
+async function startAsCallee() {
+  setStatus("Connected", "connected");
+  addMessage("You're connected. Pass the vibes 🍃", "system");
+  setChatEnabled(true);
+  nextBtn.disabled = false;
+
+  const roomRef = doc(db, "rooms", roomId);
+  const callerCandidatesRef = collection(roomRef, "callerCandidates");
+  const calleeCandidatesRef = collection(roomRef, "calleeCandidates");
+
+  pc = createPeerConnection((candidate) => addDoc(calleeCandidatesRef, candidate));
+
+  let offerApplied = false;
+  const unsubRoom = onSnapshot(roomRef, async (snap) => {
+    const data = snap.data();
+    if (data?.offer && !offerApplied && pc) {
+      offerApplied = true;
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await setDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } }, { merge: true });
+    }
+  });
+
+  const unsubCandidates = onSnapshot(callerCandidatesRef, (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "added" && pc) {
+        pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(console.error);
+      }
+    });
+  });
+
+  unsubscribers.push(unsubRoom, unsubCandidates);
+  listenForMessages(roomRef);
+}
+
+// --- Chat --------------------------------------------------------------------
+
+function listenForMessages(roomRef) {
+  const messagesRef = collection(roomRef, "messages");
+  const q = query(messagesRef, orderBy("createdAt"));
+  const unsub = onSnapshot(q, (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const msg = change.doc.data();
+        if (msg.senderId !== myId) {
+          addMessage(msg.text, "stranger");
+          typingIndicator.textContent = "";
+        }
+      }
+    });
+  });
+  unsubscribers.push(unsub);
+}
+
+async function sendMessage(text) {
+  if (!roomId) return;
+  const messagesRef = collection(doc(db, "rooms", roomId), "messages");
+  await addDoc(messagesRef, { senderId: myId, text, createdAt: serverTimestamp() });
+}
+
+// --- Cleanup / teardown --------------------------------------------------
+
+async function deleteSubcollection(parentRef, name) {
+  const snap = await getDocs(collection(parentRef, name));
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+}
+
+async function teardownRoom() {
+  clearListeners();
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  remoteVideo.srcObject = null;
+
+  if (roomId) {
+    const roomRef = doc(db, "rooms", roomId);
+    await deleteSubcollection(roomRef, "messages").catch(() => {});
+    await deleteSubcollection(roomRef, "callerCandidates").catch(() => {});
+    await deleteSubcollection(roomRef, "calleeCandidates").catch(() => {});
+    await deleteDoc(roomRef).catch(() => {});
+  }
+  roomId = null;
+}
+
+async function leaveQueueIfWaiting() {
+  clearListeners();
+  await deleteDoc(doc(db, "waitingPool", myId)).catch(() => {});
+  await deleteDoc(doc(db, "assignments", myId)).catch(() => {});
+}
+
+// --- UI event handlers --------------------------------------------------
+
+startBtn.addEventListener("click", async () => {
+  try {
+    await getLocalMedia();
+  } catch (err) {
+    alert("Camera/mic access is required to start a sesh.");
+    return;
+  }
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  messagesEl.innerHTML = "";
+  await findPartner();
+});
+
+nextBtn.addEventListener("click", async () => {
+  addMessage("You passed. Rolling up a new match...", "system");
+  setChatEnabled(false);
+  nextBtn.disabled = true;
+  await teardownRoom();
+  await findPartner();
+});
+
+stopBtn.addEventListener("click", async () => {
+  await teardownRoom();
+  await leaveQueueIfWaiting();
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop());
+    localStream = null;
+    localVideo.srcObject = null;
+  }
+  startBtn.disabled = false;
+  nextBtn.disabled = true;
+  stopBtn.disabled = true;
+  setChatEnabled(false);
+  setStatus("Not connected");
+  addMessage("Sesh's over. Come back for another round soon.", "system");
+});
+
+chatForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text) return;
+  addMessage(text, "me");
+  chatInput.value = "";
+  await sendMessage(text);
+});
+
+// --- Boot ------------------------------------------------------------------
+
+startBtn.disabled = true; // enabled once anonymous sign-in completes
+
+signInAnonymously(auth).catch((err) => {
+  console.error("Anonymous sign-in failed:", err);
+  setStatus("Setup needed - check firebaseConfig in this file and console");
+});
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    myId = user.uid;
+    startBtn.disabled = false;
+  }
+});
+
+  </script>
+</body>
+</html>
