@@ -342,7 +342,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Safe ICE server configuration staying under the browser performance limit (max 2 entries)
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -423,9 +422,11 @@ function createPeerConnection(onIceCandidate) {
   connection.ontrack = (event) => {
     console.log("🎥 Received remote track:", event.track.kind);
     event.streams[0].getTracks().forEach((track) => {
-      incomingStream.addTrack(track);
+      if (!incomingStream.getTracks().includes(track)) {
+        incomingStream.addTrack(track);
+      }
     });
-    remoteVideo.play().catch((e) => console.log("Autoplay blocked:", e));
+    remoteVideo.play().catch((e) => console.log("Autoplay suppressed:", e));
   };
 
   connection.onicecandidate = (event) => {
@@ -615,8 +616,14 @@ async function sendMessage(text) {
 
 async function teardownRoom() {
   clearListeners();
-  if (pc) { pc.close(); pc = null; }
-  remoteVideo.srcObject = null;
+  if (remoteVideo.srcObject) {
+    remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
+    remoteVideo.srcObject = null;
+  }
+  if (pc) { 
+    pc.close(); 
+    pc = null; 
+  }
   if (roomId) {
     const roomRef = doc(db, "rooms", roomId);
     await deleteDoc(roomRef).catch(() => {});
