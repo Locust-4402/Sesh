@@ -359,7 +359,7 @@ body {
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, addDoc, onSnapshot, runTransaction, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, addDoc, onSnapshot, runTransaction, query, orderBy, limit, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const firebaseConfig = {
@@ -443,6 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let unsubscribers = [];
   let iceCandidateQueue = [];
   let heartbeatInterval = null;
+  let snapshotInterval = null;
 
   function clearListeners() {
     unsubscribers.forEach((unsub) => {
@@ -450,6 +451,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     unsubscribers = [];
     iceCandidateQueue = [];
+    if (snapshotInterval) {
+      clearInterval(snapshotInterval);
+      snapshotInterval = null;
+    }
   }
 
   function startPresenceHeartbeat() {
@@ -501,6 +506,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function startSnapshotBroadcasting() {
+    if (snapshotInterval) clearInterval(snapshotInterval);
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
+
+    snapshotInterval = setInterval(async () => {
+      if (!roomId || !myId || !localVideo.readyState || localVideo.paused || localVideo.ended) return;
+      
+      try {
+        ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+
+        const roomRef = doc(db, "rooms", roomId);
+        await updateDoc(roomRef, {
+          [`snapshots.${myId}`]: dataUrl
+        });
+      } catch (err) {
+        // Suppress transient broadcast failures
+      }
+    }, 3000);
+  }
+
   function createPeerConnection(onIceCandidate) {
     const connection = new RTCPeerConnection(ICE_SERVERS);
     
@@ -545,6 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function handlePartnerDisconnect() {
     if (!roomId) return;
+    if (snapshotInterval) { clearInterval(snapshotInterval); snapshotInterval = null; }
     await teardownRoomLocally();
     addMessage("Partner ashed the session.", "system");
     setChatEnabled(false);
@@ -613,6 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage("Connected! Pass the vibes 🍃", "system");
     setChatEnabled(true);
     nextBtn.disabled = false;
+    startSnapshotBroadcasting();
 
     const roomRef = doc(db, "rooms", roomId);
     const callerCandidatesRef = collection(roomRef, "callerCandidates");
@@ -659,6 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage("Connected! Pass the vibes 🍃", "system");
     setChatEnabled(true);
     nextBtn.disabled = false;
+    startSnapshotBroadcasting();
 
     const roomRef = doc(db, "rooms", roomId);
     const callerCandidatesRef = collection(roomRef, "callerCandidates");
@@ -723,6 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function teardownRoomServerSide() {
+    if (snapshotInterval) { clearInterval(snapshotInterval); snapshotInterval = null; }
     if (remoteVideo.srcObject) {
       remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
       remoteVideo.srcObject = null;
@@ -739,6 +772,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function teardownRoomLocally() {
+    if (snapshotInterval) { clearInterval(snapshotInterval); snapshotInterval = null; }
     if (remoteVideo.srcObject) {
       remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
       remoteVideo.srcObject = null;
@@ -774,12 +808,14 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage("Finding a new match...", "system");
     setChatEnabled(false);
     nextBtn.disabled = true;
+    if (snapshotInterval) { clearInterval(snapshotInterval); snapshotInterval = null; }
     await teardownRoomServerSide();
     await fetchXirsysIceServers();
     await findPartner();
   });
 
   stopBtn.addEventListener("click", async () => {
+    if (snapshotInterval) { clearInterval(snapshotInterval); snapshotInterval = null; }
     await teardownRoomServerSide();
     await leaveQueueIfWaiting();
     if (localStream) {
