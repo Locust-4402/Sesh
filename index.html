@@ -331,7 +331,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Cleaned up STUN-only configuration to prevent discovery bottlenecks
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -373,10 +372,12 @@ let pc = null;
 let roomId = null;
 let remoteStream = null;
 let unsubscribers = [];
+let iceCandidateQueue = [];
 
 function clearListeners() {
   unsubscribers.forEach((unsub) => unsub());
   unsubscribers = [];
+  iceCandidateQueue = [];
 }
 
 async function getLocalMedia() {
@@ -415,6 +416,18 @@ function createPeerConnection(onIceCandidate) {
   };
 
   return connection;
+}
+
+async function drainCandidateQueue() {
+  if (!pc || !pc.remoteDescription) return;
+  while (iceCandidateQueue.length > 0) {
+    const candidate = iceCandidateQueue.shift();
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (e) {
+      console.error("Error adding queued ice candidate", e);
+    }
+  }
 }
 
 async function findPartner() {
@@ -492,13 +505,21 @@ async function startAsCaller() {
     if (data?.answer && !answerApplied && pc) {
       answerApplied = true;
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      await drainCandidateQueue();
     }
   });
 
   const unsubCandidates = onSnapshot(calleeCandidatesRef, (snap) => {
-    snap.docChanges().forEach((change) => {
+    snap.docChanges().forEach(async (change) => {
       if (change.type === "added" && pc) {
-        pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(() => {});
+        const candidate = change.doc.data();
+        if (pc.remoteDescription) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {}
+        } else {
+          iceCandidateQueue.push(candidate);
+        }
       }
     });
   });
@@ -525,6 +546,7 @@ async function startAsCallee() {
     if (data?.offer && !offerApplied && pc) {
       offerApplied = true;
       await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      await drainCandidateQueue();
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await setDoc(roomRef, { answer: { sdp: answer.sdp, type: answer.type } }, { merge: true });
@@ -532,9 +554,16 @@ async function startAsCallee() {
   });
 
   const unsubCandidates = onSnapshot(callerCandidatesRef, (snap) => {
-    snap.docChanges().forEach((change) => {
+    snap.docChanges().forEach(async (change) => {
       if (change.type === "added" && pc) {
-        pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(() => {});
+        const candidate = change.doc.data();
+        if (pc.remoteDescription) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {}
+        } else {
+          iceCandidateQueue.push(candidate);
+        }
       }
     });
   });
