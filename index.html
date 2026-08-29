@@ -382,36 +382,33 @@ document.addEventListener("DOMContentLoaded", () => {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const XIRSYS_CONFIG = {
-    path: "https://global.xirsys.net/_turn/channelf9b7de1c",
-    ident: "locust4402",
-    secret: "f98669d6-a3c6-11f1-bf12-0242ac150005"
+  const EXPRESSTURN_CONFIG = {
+    username: "000000002103407246",
+    credential: "l45ep7ID0KVe0gvS5JHg8yIqpus="
   };
 
-  let ICE_SERVERS = {
+  const ICE_SERVERS = {
     iceServers: [
-      { urls: "stun:stun.l.google.com:19302" }
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun.expressturn.com:3478" },
+      {
+        urls: "turn:relay1.expressturn.com:3480",
+        username: EXPRESSTURN_CONFIG.username,
+        credential: EXPRESSTURN_CONFIG.credential
+      },
+      {
+        urls: "turn:relay1.expressturn.com:3480?transport=tcp",
+        username: EXPRESSTURN_CONFIG.username,
+        credential: EXPRESSTURN_CONFIG.credential
+      }
     ]
   };
 
+  // ExpressTurn's free tier uses static long-term credentials, so there's
+  // nothing to fetch at runtime. Kept as a no-op so the existing call sites
+  // (startBtn / nextBtn handlers below) don't need to change.
   async function fetchXirsysIceServers() {
-    try {
-      const headers = new Headers();
-      headers.append("Authorization", "Basic " + btoa(XIRSYS_CONFIG.ident + ":" + XIRSYS_CONFIG.secret));
-      headers.append("Content-Type", "application/json");
-
-      const response = await fetch(XIRSYS_CONFIG.path + "?webrtc=1", {
-        method: "PUT",
-        headers: headers
-      });
-      
-      const data = await response.json();
-      if (data.s === "ok" && data.v && data.v.iceServers) {
-        ICE_SERVERS = { iceServers: data.v.iceServers };
-      }
-    } catch (err) {
-      console.warn("⚠️ Fallback to default STUN due to Xirsys fetch error:", err);
-    }
+    return Promise.resolve();
   }
 
   const localVideo = document.getElementById("localVideo");
