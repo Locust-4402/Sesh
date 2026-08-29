@@ -422,8 +422,14 @@ function createPeerConnection(onIceCandidate) {
     localStream.getTracks().forEach((track) => connection.addTrack(track, localStream));
   }
 
+  const incomingStream = new MediaStream();
+  remoteVideo.srcObject = incomingStream;
+
   connection.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams[0];
+    event.streams[0].getTracks().forEach((track) => {
+      incomingStream.addTrack(track);
+    });
+    remoteVideo.play().catch(() => {});
   };
 
   connection.onicecandidate = (event) => {
