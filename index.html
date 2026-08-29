@@ -381,7 +381,7 @@ function clearListeners() {
 }
 
 async function getLocalMedia() {
-  if (localStream) return localStream;
+  if (localStream && localStream.active) return localStream;
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
@@ -390,7 +390,7 @@ async function getLocalMedia() {
     localVideo.srcObject = localStream;
     return localStream;
   } catch (err) {
-    alert("Camera/Mic permission denied or unavailable. Check browser permissions.");
+    alert("Camera/Mic permission denied or unavailable. Check browser settings.");
     throw err;
   }
 }
