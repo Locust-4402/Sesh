@@ -458,14 +458,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const heartbeat = async () => {
       try {
-        await setDoc(userPresenceRef, { lastSeen: serverTimestamp() }, { merge: true });
+        await setDoc(userPresenceRef, { lastSeen: Date.now() }, { merge: true });
       } catch (e) {}
     };
 
     heartbeat();
     heartbeatInterval = setInterval(heartbeat, 8000);
 
-    // Listen to all active presences to count users online
     const presenceCol = collection(db, "presence");
     const unsubPresence = onSnapshot(presenceCol, (snapshot) => {
       const now = Date.now();
@@ -473,9 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
       snapshot.forEach((d) => {
         const data = d.data();
         if (data.lastSeen) {
-          const timestampMillis = data.lastSeen.toMillis ? data.lastSeen.toMillis() : data.lastSeen.seconds * 1000;
-          // Consider online if active within last 20 seconds
-          if (now - timestampMillis < 20000) {
+          if (now - data.lastSeen < 20000) {
             count++;
           }
         }
@@ -484,7 +481,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     unsubscribers.push(unsubPresence);
 
-    // Cleanup presence on window close/unload
     window.addEventListener("beforeunload", () => {
       deleteDoc(userPresenceRef).catch(() => {});
     });
