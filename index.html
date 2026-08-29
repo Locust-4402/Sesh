@@ -76,6 +76,12 @@ body {
   background: var(--panel);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .topbar h1 {
   font-family: "Bungee", "Rubik", sans-serif;
   font-size: 18px;
@@ -94,6 +100,29 @@ body {
   font-weight: 400;
   color: var(--text-dim);
   text-shadow: none;
+}
+
+.online-badge {
+  font-size: 12px;
+  background: rgba(31, 107, 35, 0.3);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-bright);
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.online-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--accent-bright);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-bright);
+  display: inline-block;
 }
 
 .status {
@@ -290,7 +319,10 @@ body {
   <div class="leaf-field" aria-hidden="true"></div>
 
   <header class="topbar">
-    <h1>🍃 Sesh <span class="tagline">pull up with a stranger</span></h1>
+    <div class="topbar-left">
+      <h1>🍃 Sesh <span class="tagline">pull up with a stranger</span></h1>
+      <div id="onlineBadge" class="online-badge">-- online</div>
+    </div>
     <span id="status" class="status">Connecting...</span>
   </header>
 
@@ -369,7 +401,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (data.s === "ok" && data.v && data.v.iceServers) {
         ICE_SERVERS = { iceServers: data.v.iceServers };
-        console.log("✅ Fetched fresh Xirsys ICE servers successfully");
       }
     } catch (err) {
       console.warn("⚠️ Fallback to default STUN due to Xirsys fetch error:", err);
@@ -379,6 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const localVideo = document.getElementById("localVideo");
   const remoteVideo = document.getElementById("remoteVideo");
   const statusEl = document.getElementById("status");
+  const onlineBadge = document.getElementById("onlineBadge");
   const startBtn = document.getElementById("startBtn");
   const nextBtn = document.getElementById("nextBtn");
   const stopBtn = document.getElementById("stopBtn");
@@ -410,6 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let roomId = null;
   let unsubscribers = [];
   let iceCandidateQueue = [];
+  let heartbeatInterval = null;
 
   function clearListeners() {
     unsubscribers.forEach((unsub) => {
@@ -417,6 +450,44 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     unsubscribers = [];
     iceCandidateQueue = [];
+  }
+
+  function startPresenceHeartbeat() {
+    if (!myId) return;
+    const userPresenceRef = doc(db, "presence", myId);
+
+    const heartbeat = async () => {
+      try {
+        await setDoc(userPresenceRef, { lastSeen: serverTimestamp() }, { merge: true });
+      } catch (e) {}
+    };
+
+    heartbeat();
+    heartbeatInterval = setInterval(heartbeat, 8000);
+
+    // Listen to all active presences to count users online
+    const presenceCol = collection(db, "presence");
+    const unsubPresence = onSnapshot(presenceCol, (snapshot) => {
+      const now = Date.now();
+      let count = 0;
+      snapshot.forEach((d) => {
+        const data = d.data();
+        if (data.lastSeen) {
+          const timestampMillis = data.lastSeen.toMillis ? data.lastSeen.toMillis() : data.lastSeen.seconds * 1000;
+          // Consider online if active within last 20 seconds
+          if (now - timestampMillis < 20000) {
+            count++;
+          }
+        }
+      });
+      onlineBadge.textContent = `${Math.max(1, count)} online`;
+    });
+    unsubscribers.push(unsubPresence);
+
+    // Cleanup presence on window close/unload
+    window.addEventListener("beforeunload", () => {
+      deleteDoc(userPresenceRef).catch(() => {});
+    });
   }
 
   async function getLocalMedia() {
@@ -445,13 +516,12 @@ document.addEventListener("DOMContentLoaded", () => {
     remoteVideo.srcObject = incomingStream;
 
     connection.ontrack = (event) => {
-      console.log("🎥 Received remote track:", event.track.kind);
       event.streams[0].getTracks().forEach((track) => {
         if (!incomingStream.getTracks().includes(track)) {
           incomingStream.addTrack(track);
         }
       });
-      remoteVideo.play().catch((e) => console.log("Autoplay suppressed:", e));
+      remoteVideo.play().catch((e) => {});
     };
 
     connection.onicecandidate = (event) => {
@@ -459,7 +529,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     connection.onconnectionstatechange = () => {
-      console.log("🔗 WebRTC Connection State:", connection.connectionState);
       if (connection.connectionState === "disconnected" || connection.connectionState === "failed" || connection.connectionState === "closed") {
         handlePartnerDisconnect();
       }
@@ -490,7 +559,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function findPartner() {
-    clearListeners();
     setStatus("Looking for partner...", "waiting");
     addMessage("Scanning rotation for a partner...", "system");
 
@@ -659,7 +727,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function teardownRoomServerSide() {
-    clearListeners();
     if (remoteVideo.srcObject) {
       remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
       remoteVideo.srcObject = null;
@@ -676,7 +743,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function teardownRoomLocally() {
-    clearListeners();
     if (remoteVideo.srcObject) {
       remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
       remoteVideo.srcObject = null;
@@ -689,7 +755,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function leaveQueueIfWaiting() {
-    clearListeners();
     if (myId) {
       await deleteDoc(doc(db, "waitingPool", myId)).catch(() => {});
       await deleteDoc(doc(db, "assignments", myId)).catch(() => {});
@@ -753,6 +818,7 @@ document.addEventListener("DOMContentLoaded", () => {
       myId = user.uid;
       setStatus("Ready");
       startBtn.disabled = false;
+      startPresenceHeartbeat();
     }
   });
 });
