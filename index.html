@@ -1,330 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>🍃 Sesh</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet" />
-<style>
-:root {
-  --bg: #081008;
-  --panel: #0f1c10;
-  --border: #234a24;
-  --accent: #4ad84a;
-  --accent-dim: #1f6b23;
-  --accent-bright: #7dff5a;
-  --text: #e7f5e6;
-  --text-dim: #7fa77e;
-  --danger: #ff6b4a;
-}
-
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(ellipse at top, #10240f 0%, var(--bg) 70%);
-  color: var(--text);
-  font-family: "Rubik", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow: hidden;
-}
-
-body {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.leaf-field {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.leaf-field::before,
-.leaf-field::after {
-  content: "🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿 🍃 🌿";
-  position: absolute;
-  left: -10%;
-  width: 120%;
-  font-size: 22px;
-  line-height: 90px;
-  letter-spacing: 40px;
-  opacity: 0.06;
-  white-space: pre-wrap;
-  color: var(--accent-bright);
-}
-
-.leaf-field::before { top: 6%; transform: rotate(-6deg); }
-.leaf-field::after { top: 55%; transform: rotate(4deg); }
-
-.topbar, .layout, .controls { position: relative; z-index: 1; }
-
-.topbar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.topbar h1 {
-  font-family: "Bungee", "Rubik", sans-serif;
-  font-size: 18px;
-  margin: 0;
-  letter-spacing: 0.5px;
-  color: var(--accent-bright);
-  text-shadow: 0 0 18px rgba(125, 255, 90, 0.35);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.tagline {
-  font-family: "Rubik", sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-dim);
-  text-shadow: none;
-}
-
-.status {
-  font-size: 12px;
-  color: var(--text-dim);
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  max-width: 140px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.status.connected { color: var(--accent-bright); border-color: var(--accent-dim); }
-.status.waiting { color: #f2c94c; border-color: #6b5a1d; }
-
-.layout {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-  padding: 12px;
-  min-height: 0;
-  height: 100%;
-}
-
-.video-area {
-  position: relative;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  min-height: 200px;
-}
-
-.video-wrap {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-.video-wrap video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  background: #000;
-}
-
-.video-wrap.small {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  width: 110px;
-  height: 140px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  z-index: 2;
-}
-
-.video-label {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: rgba(0,0,0,0.55);
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 11px;
-  color: var(--text-dim);
-  z-index: 3;
-}
-
-.chat-area {
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.msg {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  line-height: 1.4;
-  word-wrap: break-word;
-}
-
-.msg.me {
-  align-self: flex-end;
-  background: var(--accent-dim);
-  color: white;
-}
-
-.msg.stranger {
-  align-self: flex-start;
-  background: #23262f;
-}
-
-.msg.system {
-  align-self: center;
-  color: var(--text-dim);
-  font-style: italic;
-  font-size: 12px;
-  background: none;
-  text-align: center;
-}
-
-.typing-indicator {
-  height: 14px;
-  padding: 0 10px;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.chat-form {
-  display: flex;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.chat-form input {
-  flex: 1;
-  border: none;
-  background: #10121a;
-  color: var(--text);
-  padding: 12px;
-  font-size: 14px;
-  outline: none;
-}
-
-.chat-form button {
-  border: none;
-  background: var(--accent);
-  color: white;
-  padding: 0 16px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.chat-form button:disabled,
-.chat-form input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.controls {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.controls button {
-  padding: 10px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #1d212b;
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  flex: 1;
-  max-width: 120px;
-}
-
-#startBtn { background: var(--accent); border-color: var(--accent); color: white; font-weight: bold; }
-#stopBtn:not(:disabled) { border-color: var(--danger); color: var(--danger); }
-
-@media (max-width: 768px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: 1.2fr 1fr; }
-  .video-wrap.small { width: 90px; height: 110px; }
-}
-</style>
-</head>
-<body>
-  <div class="leaf-field" aria-hidden="true"></div>
-
-  <header class="topbar">
-    <h1>🍃 Sesh <span class="tagline">pull up with a stranger</span></h1>
-    <span id="status" class="status">Connecting...</span>
-  </header>
-
-  <main class="layout">
-    <section class="video-area">
-      <div class="video-wrap">
-        <video id="remoteVideo" autoplay playsinline></video>
-        <span class="video-label">Partner</span>
-      </div>
-      <div class="video-wrap small">
-        <video id="localVideo" autoplay playsinline muted></video>
-        <span class="video-label">You</span>
-      </div>
-    </section>
-
-    <section class="chat-area">
-      <div id="messages" class="messages">
-        <div class="msg system">Hit 'Spark' to jump into rotation.</div>
-      </div>
-      <div id="typingIndicator" class="typing-indicator"></div>
-      <form id="chatForm" class="chat-form">
-        <input id="chatInput" type="text" placeholder="Say what's good..." autocomplete="off" disabled />
-        <button type="submit" disabled>Send</button>
-      </form>
-    </section>
-  </main>
-
-  <footer class="controls">
-    <button id="startBtn" disabled>🔥 Spark</button>
-    <button id="nextBtn" disabled>🔄 Pass</button>
-    <button id="stopBtn" disabled>🚫 Ash</button>
-  </footer>
-
-  <script type="module">
+<script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, addDoc, onSnapshot, runTransaction, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -342,16 +16,39 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const ICE_SERVERS = {
+// Xirsys API Config
+const XIRSYS_CONFIG = {
+  path: "https://global.xirsys.net/_turn/channelf9b7de1c",
+  ident: "locust4402",
+  secret: "f98669d6-a3c6-11f1-bf12-0242ac150005"
+};
+
+let ICE_SERVERS = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject@gmail.com",
-      credential: "openrelayproject"
-    }
+    { urls: "stun:stun.l.google.com:19302" }
   ]
 };
+
+async function fetchXirsysIceServers() {
+  try {
+    const headers = new Headers();
+    headers.append("Authorization", "Basic " + btoa(XIRSYS_CONFIG.ident + ":" + XIRSYS_CONFIG.secret));
+    headers.append("Content-Type", "application/json");
+
+    const response = await fetch(XIRSYS_CONFIG.path + "?webrtc=1", {
+      method: "PUT",
+      headers: headers
+    });
+    
+    const data = await response.json();
+    if (data.s === "ok" && data.v && data.v.iceServers) {
+      ICE_SERVERS = { iceServers: data.v.iceServers };
+      console.log("✅ Fetched fresh Xirsys ICE servers successfully");
+    }
+  } catch (err) {
+    console.warn("⚠️ Fallback to default STUN due to Xirsys fetch error:", err);
+  }
+}
 
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
@@ -389,7 +86,9 @@ let unsubscribers = [];
 let iceCandidateQueue = [];
 
 function clearListeners() {
-  unsubscribers.forEach((unsub) => unsub());
+  unsubscribers.forEach((unsub) => {
+    try { unsub(); } catch (e) {}
+  });
   unsubscribers = [];
   iceCandidateQueue = [];
 }
@@ -455,6 +154,7 @@ async function drainCandidateQueue() {
 }
 
 async function findPartner() {
+  clearListeners();
   setStatus("Looking for partner...", "waiting");
   addMessage("Scanning rotation for a partner...", "system");
 
@@ -642,6 +342,7 @@ async function leaveQueueIfWaiting() {
 startBtn.addEventListener("click", async () => {
   try {
     await getLocalMedia();
+    await fetchXirsysIceServers(); // Pull fresh Xirsys credentials right before connecting
   } catch (err) {
     return;
   }
@@ -656,6 +357,7 @@ nextBtn.addEventListener("click", async () => {
   setChatEnabled(false);
   nextBtn.disabled = true;
   await teardownRoom();
+  await fetchXirsysIceServers(); // Refresh TURN parameters for next partner
   await findPartner();
 });
 
@@ -697,5 +399,3 @@ onAuthStateChanged(auth, (user) => {
   }
 });
   </script>
-</body>
-</html>
