@@ -509,8 +509,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function startSnapshotBroadcasting() {
     if (snapshotInterval) clearInterval(snapshotInterval);
     const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 120;
+    canvas.width = 320;
+    canvas.height = 240;
     const ctx = canvas.getContext('2d');
 
     snapshotInterval = setInterval(async () => {
@@ -518,7 +518,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       try {
         ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
 
         const roomRef = doc(db, "rooms", roomId);
         await updateDoc(roomRef, {
@@ -527,7 +527,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         // Suppress transient broadcast failures
       }
-    }, 3000);
+    }, 2000);
   }
 
   function createPeerConnection(onIceCandidate) {
@@ -553,8 +553,27 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.candidate) onIceCandidate(event.candidate.toJSON());
     };
 
+    // Hardened connection state check to prevent premature false drops
+    let disconnectTimer = null;
     connection.onconnectionstatechange = () => {
-      if (connection.connectionState === "disconnected" || connection.connectionState === "failed" || connection.connectionState === "closed") {
+      const state = connection.connectionState;
+      
+      if (state === "connected") {
+        if (disconnectTimer) {
+          clearTimeout(disconnectTimer);
+          disconnectTimer = null;
+        }
+      } else if (state === "disconnected") {
+        // Give it a 5-second grace period to recover automatically before dropping
+        if (!disconnectTimer) {
+          disconnectTimer = setTimeout(() => {
+            if (connection.connectionState === "disconnected" || connection.connectionState === "failed") {
+              handlePartnerDisconnect();
+            }
+          }, 5000);
+        }
+      } else if (state === "failed" || state === "closed") {
+        if (disconnectTimer) clearTimeout(disconnectTimer);
         handlePartnerDisconnect();
       }
     };
@@ -661,6 +680,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = snap.data();
+      // Check if admin ashed the room
+      if (data?.status === "ashed") {
+        handlePartnerDisconnect();
+        return;
+      }
       if (data?.answer && !answerApplied && pc) {
         answerApplied = true;
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -705,6 +729,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = snap.data();
+      // Check if admin ashed the room
+      if (data?.status === "ashed") {
+        handlePartnerDisconnect();
+        return;
+      }
       if (data?.offer && !offerApplied && pc) {
         offerApplied = true;
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
