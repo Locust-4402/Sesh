@@ -480,17 +480,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function handlePartnerDisconnect() {
     if (!roomId) return;
-    addMessage("Partner left the session.", "system");
-    await teardownRoom();
+    await teardownRoomLocally();
+    addMessage("Partner ashed the session.", "system");
     setChatEnabled(false);
     nextBtn.disabled = true;
-    setStatus("Partner disconnected", "waiting");
-    
-    setTimeout(async () => {
-      if (!roomId && startBtn.disabled) {
-        await findPartner();
-      }
-    }, 2000);
+    stopBtn.disabled = true;
+    startBtn.disabled = false;
+    setStatus("Ready");
   }
 
   async function findPartner() {
@@ -662,7 +658,7 @@ document.addEventListener("DOMContentLoaded", () => {
     await addDoc(messagesRef, { senderId: myId, text, createdAt: serverTimestamp() });
   }
 
-  async function teardownRoom() {
+  async function teardownRoomServerSide() {
     clearListeners();
     if (remoteVideo.srcObject) {
       remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
@@ -675,6 +671,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (roomId) {
       const roomRef = doc(db, "rooms", roomId);
       await deleteDoc(roomRef).catch(() => {});
+    }
+    roomId = null;
+  }
+
+  async function teardownRoomLocally() {
+    clearListeners();
+    if (remoteVideo.srcObject) {
+      remoteVideo.srcObject.getTracks().forEach((track) => track.stop());
+      remoteVideo.srcObject = null;
+    }
+    if (pc) { 
+      pc.close(); 
+      pc = null; 
     }
     roomId = null;
   }
@@ -704,13 +713,13 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage("Finding a new match...", "system");
     setChatEnabled(false);
     nextBtn.disabled = true;
-    await teardownRoom();
+    await teardownRoomServerSide();
     await fetchXirsysIceServers();
     await findPartner();
   });
 
   stopBtn.addEventListener("click", async () => {
-    await teardownRoom();
+    await teardownRoomServerSide();
     await leaveQueueIfWaiting();
     if (localStream) {
       localStream.getTracks().forEach((t) => t.stop());
