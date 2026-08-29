@@ -331,27 +331,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Enhanced ICE servers including public STUN and Open Relay TURN fallback
+// Cleaned up STUN-only configuration to prevent discovery bottlenecks
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun.relay.metered.ca:80" },
-    {
-      urls: "turn:standard.relay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turn:standard.relay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turns:standard.relay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    }
+    { urls: "stun:stun1.l.google.com:19302" }
   ]
 };
 
