@@ -907,6 +907,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const userEmailBadge = document.getElementById("userEmailBadge");
 
   onAuthStateChanged(auth, (user) => {
+    if (user && user.isAnonymous) {
+      // Leftover anonymous session from before Google sign-in was required —
+      // sign it out so the user goes through the real Google flow.
+      signOut(auth);
+      return;
+    }
     if (user) {
       myId = user.uid;
       signInGate.style.display = "none";
