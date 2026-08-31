@@ -378,7 +378,7 @@ body {
 
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, addDoc, onSnapshot, runTransaction, query, orderBy, limit, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -895,19 +895,13 @@ document.addEventListener("DOMContentLoaded", () => {
     signInError.textContent = "";
     googleSignInBtn.disabled = true;
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // Page navigates away here; code after this won't run until the
-      // user is redirected back and getRedirectResult() picks it up below.
+      await signInWithPopup(auth, googleProvider);
     } catch (err) {
       console.error(err);
       signInError.textContent = `Sign-in failed: ${err.code || err.message || "unknown error"}`;
+    } finally {
       googleSignInBtn.disabled = false;
     }
-  });
-
-  getRedirectResult(auth).catch((err) => {
-    console.error(err);
-    signInError.textContent = `Sign-in failed: ${err.code || err.message || "unknown error"}`;
   });
 
   const userEmailBadge = document.getElementById("userEmailBadge");
